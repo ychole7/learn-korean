@@ -98,6 +98,36 @@ var CHO=["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ"
 var JUNG=["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
 function combine(c,j){var ci=CHO.indexOf(c),ji=JUNG.indexOf(j);if(ci<0||ji<0)return c+j;return String.fromCharCode(0xac00+ci*21*28+ji*28);}
 var syllableA={g:"syl_ga",n:"syl_na",d:"syl_da",r:"syl_ra",m:"syl_ma",b:"syl_ba",s:"syl_sa",ng:"syl_a",j:"syl_ja",ch:"syl_cha",k:"syl_ka",t:"syl_ta",p:"syl_pa",h:"syl_ha"};
+
+// 획순 데이터: 각 글자 = 획 배열, 각 획 = 점 배열 [x,y] (300x300 기준)
+var STROKES={
+ // 자음
+ "ㄱ":[[[80,80],[210,80],[210,220]]],
+ "ㄴ":[[[95,75],[95,215],[215,215]]],
+ "ㄷ":[[[85,75],[215,75]],[[85,75],[85,215],[215,215]]],
+ "ㄹ":[[[90,70],[210,70],[210,120],[90,120]],[[90,120],[90,170],[210,170]],[[210,170],[210,220],[90,220]]],
+ "ㅁ":[[[85,75],[85,215]],[[85,75],[215,75],[215,215]],[[85,215],[215,215]]],
+ "ㅂ":[[[85,70],[85,220]],[[215,70],[215,220]],[[85,140],[215,140]],[[85,220],[215,220]]],
+ "ㅅ":[[[150,70],[85,225]],[[150,70],[215,225]]],
+ "ㅇ":[[[150,70],[95,110],[90,170],[150,215],[210,170],[205,110],[150,70]]],
+ "ㅈ":[[[80,75],[220,75]],[[150,75],[85,215]],[[150,75],[215,215]]],
+ "ㅊ":[[[150,55],[150,75]],[[80,95],[220,95]],[[150,95],[90,225]],[[150,95],[210,225]]],
+ "ㅋ":[[[80,80],[210,80],[210,220]],[[80,150],[210,150]]],
+ "ㅌ":[[[85,75],[215,75]],[[85,140],[215,140]],[[85,75],[85,215],[215,215]]],
+ "ㅍ":[[[75,80],[225,80]],[[120,80],[120,200]],[[180,80],[180,200]],[[75,200],[225,200]]],
+ "ㅎ":[[[110,55],[190,55]],[[150,75],[150,95]],[[150,95],[100,125],[100,165],[150,205],[200,165],[200,125],[150,95]]],
+ // 모음
+ "ㅏ":[[[140,60],[140,240]],[[140,150],[220,150]]],
+ "ㅑ":[[[140,60],[140,240]],[[140,115],[220,115]],[[140,185],[220,185]]],
+ "ㅓ":[[[80,150],[160,150]],[[160,60],[160,240]]],
+ "ㅕ":[[[80,115],[160,115]],[[80,185],[160,185]],[[160,60],[160,240]]],
+ "ㅗ":[[[150,90],[150,200]],[[70,200],[230,200]]],
+ "ㅛ":[[[115,90],[115,190]],[[185,90],[185,190]],[[70,200],[230,200]]],
+ "ㅜ":[[[70,110],[230,110]],[[150,110],[150,220]]],
+ "ㅠ":[[[70,110],[230,110]],[[115,110],[115,210]],[[185,110],[185,210]]],
+ "ㅡ":[[[65,150],[235,150]]],
+ "ㅣ":[[[150,60],[150,240]]]
+};
 var zoo=[{e:"🐶",n:"강아지",at:0},{e:"🐰",n:"토끼",at:3},{e:"🐱",n:"고양이",at:6},{e:"🦊",n:"여우",at:10},{e:"🐻",n:"곰",at:15},{e:"🐯",n:"호랑이",at:20},{e:"🦁",n:"사자",at:26},{e:"🐼",n:"판다",at:32},{e:"🦄",n:"유니콘",at:40},{e:"🐉",n:"용",at:50}];
 
 // ---- 오디오 ----
@@ -190,7 +220,7 @@ function renderView(){
     });
     h+='</div>';
   } else if(state.mode==="write"){
-    h='<div class="center"><p style="font-size:18px;margin:0 0 8px">손가락으로 글자를 따라 그려봐요! ✏️</p>'+
+    h='<div class="center"><p style="font-size:18px;margin:0 0 8px">①번부터 화살표 방향으로 따라 그려요! ✏️</p>'+
       '<div style="background:#fff;border-radius:28px;padding:12px;box-shadow:0 6px 0 #f3d0dd;display:inline-block"><canvas id="cv" width="300" height="300"></canvas></div>'+
       '<div class="bar"><div id="barfill"></div></div><div id="praise" style="font-size:30px"></div>'+
       '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px">'+
@@ -231,17 +261,101 @@ function renderView(){
 function cardClick(tab,idx){var it=(tab==="consonant"?consonants:vowels)[idx];playItem(it);}
 window.cardClick=cardClick;window.playItem=playItem;window.playKey=playKey;window.speak=speak;window.state=state;
 
-// 따라쓰기
-var drawing=false,pts=0;
-function setupCanvas(){var cv=document.getElementById('cv');if(!cv)return;var ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,300,300);ctx.font="240px Jua,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
-  ctx.fillStyle="#eee";ctx.fillText(state.writeChar.char,150,160);
-  ctx.strokeStyle="#ddd";ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.strokeText(state.writeChar.char,150,160);ctx.setLineDash([]);
-  pts=0;state.traced=false;var bf=document.getElementById('barfill');if(bf){bf.style.width="0";bf.style.background="#ffd86b";}var pr=document.getElementById('praise');if(pr)pr.textContent="";
-  function P(e){var r=cv.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(300/r.width),y:(t.clientY-r.top)*(300/r.height)};}
-  cv.onmousedown=cv.ontouchstart=function(e){e.preventDefault();drawing=true;var p=P(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
-  cv.onmousemove=cv.ontouchmove=function(e){if(!drawing)return;e.preventDefault();var p=P(e);ctx.strokeStyle=state.writeChar.color;ctx.lineWidth=26;ctx.lineCap="round";ctx.lineJoin="round";ctx.lineTo(p.x,p.y);ctx.stroke();pts++;var v=Math.min(100,Math.round(pts/90*100));var bf=document.getElementById('barfill');if(bf)bf.style.width=v+"%";if(v>=100&&!state.traced){state.traced=true;bf.style.background="#9be7c4";setStars(state.stars+1);var pr=document.getElementById('praise');if(pr)pr.textContent="🎉 참 잘했어요! ⭐";playItem(state.writeChar);setTimeout(function(){playKey("good","참 잘했어요");},800);}};
-  cv.onmouseup=cv.ontouchend=cv.onmouseleave=function(){drawing=false;};
+// 따라쓰기 (획순 안내)
+var drawing=false;
+var wStrokes=[];      // 현재 글자의 획 목록
+var wStep=0;          // 현재 그릴 획 번호
+var wHit=[];          // 현재 획에서 지나간 점 표시
+var wCtx=null,wCanvas=null;
+
+function strokeColor(){return state.writeChar.color;}
+
+function drawGuide(){
+  var ctx=wCtx;if(!ctx)return;
+  ctx.clearRect(0,0,300,300);
+  // 배경 글자(아주 연하게)
+  ctx.font="240px Jua,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillStyle="#f2f2f2";ctx.fillText(state.writeChar.char,150,158);
+  // 이미 완성한 획: 색칠된 상태로 표시
+  for(var s=0;s<wStep;s++)drawStrokeLine(wStrokes[s],strokeColor(),22,1);
+  // 현재 획: 점선 + 시작점 번호 + 화살표
+  if(wStep<wStrokes.length){
+    var cur=wStrokes[wStep];
+    drawStrokeLine(cur,"#bbb",6,1,true);
+    // 시작점 마커
+    var p0=cur[0];
+    ctx.beginPath();ctx.fillStyle="#ff6b9d";ctx.arc(p0[0],p0[1],16,0,7);ctx.fill();
+    ctx.fillStyle="#fff";ctx.font="20px Jua,sans-serif";ctx.fillText(String(wStep+1),p0[0],p0[1]+1);
+    // 방향 화살표(끝점)
+    var pe=cur[cur.length-1],pp=cur[cur.length-2]||p0;
+    drawArrow(pp,pe);
+  }
+}
+function drawStrokeLine(stroke,color,width,alpha,dashed){
+  var ctx=wCtx;ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=width;
+  ctx.lineCap="round";ctx.lineJoin="round";if(dashed)ctx.setLineDash([2,12]);
+  ctx.beginPath();ctx.moveTo(stroke[0][0],stroke[0][1]);
+  for(var i=1;i<stroke.length;i++)ctx.lineTo(stroke[i][0],stroke[i][1]);
+  ctx.stroke();ctx.setLineDash([]);ctx.restore();
+}
+function drawArrow(from,to){
+  var ctx=wCtx;var ang=Math.atan2(to[1]-from[1],to[0]-from[0]);
+  ctx.save();ctx.fillStyle="#ff6b9d";ctx.translate(to[0],to[1]);ctx.rotate(ang);
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-16,-8);ctx.lineTo(-16,8);ctx.closePath();ctx.fill();ctx.restore();
+}
+
+function setupCanvas(){
+  wCanvas=document.getElementById('cv');if(!wCanvas)return;
+  wCtx=wCanvas.getContext('2d');
+  wStrokes=STROKES[state.writeChar.char]||[[[80,80],[220,220]]];
+  wStep=0;wHit=[];state.traced=false;
+  drawGuide();
+  var bf=document.getElementById('barfill');if(bf){bf.style.width="0";bf.style.background="#ffd86b";}
+  var pr=document.getElementById('praise');if(pr)pr.textContent="";
+  function P(e){var r=wCanvas.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(300/r.width),y:(t.clientY-r.top)*(300/r.height)};}
+  function near(p,pt,d){var dx=p.x-pt[0],dy=p.y-pt[1];return dx*dx+dy*dy<=d*d;}
+  function checkProgress(p){
+    if(wStep>=wStrokes.length)return;
+    var cur=wStrokes[wStep];
+    // 곡선/직선을 따라 촘촘한 샘플점 생성
+    if(!cur._samples)cur._samples=sampleStroke(cur);
+    var sm=cur._samples;
+    for(var i=0;i<sm.length;i++){if(!wHit[i]&&near(p,sm[i],26))wHit[i]=true;}
+    var done=0;for(var k=0;k<sm.length;k++)if(wHit[k])done++;
+    var ratio=done/sm.length;
+    // 전체 진행바: (완성획 + 현재획 비율)/총획
+    var total=(wStep+ratio)/wStrokes.length;
+    var bf=document.getElementById('barfill');if(bf)bf.style.width=Math.round(total*100)+"%";
+    if(ratio>=0.8){ // 이 획 거의 다 그림 → 다음 획
+      wStep++;wHit=[];
+      drawGuide();
+      if(wStep>=wStrokes.length)finishWrite();
+    }
+  }
+  wCanvas.onmousedown=wCanvas.ontouchstart=function(e){e.preventDefault();drawing=true;var p=P(e);wCtx.beginPath();wCtx.moveTo(p.x,p.y);checkProgress(p);};
+  wCanvas.onmousemove=wCanvas.ontouchmove=function(e){if(!drawing)return;e.preventDefault();var p=P(e);
+    wCtx.strokeStyle=strokeColor();wCtx.lineWidth=24;wCtx.lineCap="round";wCtx.lineJoin="round";wCtx.lineTo(p.x,p.y);wCtx.stroke();
+    checkProgress(p);};
+  wCanvas.onmouseup=wCanvas.ontouchend=wCanvas.onmouseleave=function(){drawing=false;};
+}
+function sampleStroke(stroke){
+  var pts=[];
+  for(var i=0;i<stroke.length-1;i++){
+    var a=stroke[i],b=stroke[i+1];
+    var dist=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    var n=Math.max(2,Math.round(dist/12));
+    for(var t=0;t<n;t++)pts.push([a[0]+(b[0]-a[0])*t/n,a[1]+(b[1]-a[1])*t/n]);
+  }
+  pts.push(stroke[stroke.length-1]);
+  return pts;
+}
+function finishWrite(){
+  if(state.traced)return;state.traced=true;
+  var bf=document.getElementById('barfill');if(bf){bf.style.width="100%";bf.style.background="#9be7c4";}
+  var pr=document.getElementById('praise');if(pr)pr.textContent="🎉 참 잘했어요! ⭐";
+  setStars(state.stars+1);
+  playItem(state.writeChar);
+  setTimeout(function(){playKey("good","참 잘했어요");},900);
 }
 function clearCanvas(){setupCanvas();}
 window.clearCanvas=clearCanvas;
