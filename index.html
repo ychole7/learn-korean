@@ -56,7 +56,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><h1>🐣 한글 놀이</h1><div class="stars">⭐ <span id="stars">0</span></div></div>
+  <div class="top"><h1>🐣 한글 놀이</h1><div class="stars" onclick="resetStars()">⭐ <span id="stars">0</span></div></div>
   <div class="diag" id="diag">소리 준비됨. 글자를 누르면 소리가 나요.</div>
   <div class="modes" id="modes"></div>
   <div class="tabs" id="tabs"></div>
@@ -164,8 +164,9 @@ document.addEventListener('touchstart',unlock,{once:true});
 document.addEventListener('click',unlock,{once:true});
 
 // ---- 상태/렌더 ----
-var state={mode:"learn",tab:"consonant",stars:0,writeChar:consonants[0],bCho:consonants[0],bJung:vowels[0],merged:false,quiz:null,choices:[],fb:null,progress:0,traced:false};
-function setStars(n){state.stars=n;document.getElementById('stars').textContent=n;}
+var savedStars=0;try{savedStars=parseInt(localStorage.getItem('hangul_stars'))||0;}catch(e){}
+var state={mode:"learn",tab:"consonant",stars:savedStars,writeChar:consonants[0],bCho:consonants[0],bJung:vowels[0],merged:false,quiz:null,choices:[],fb:null,progress:0,traced:false};
+function setStars(n){state.stars=n;var el=document.getElementById('stars');if(el)el.textContent=n;try{localStorage.setItem('hangul_stars',n);}catch(e){}}
 var modes=[["learn","📚 배우기"],["write","✏️ 따라쓰기"],["build","🧩 합치기"],["quiz","🎯 맞히기"],["zoo","🦁 도감"]];
 function renderModes(){var h="";modes.forEach(function(m){h+='<button class="'+(state.mode===m[0]?"on":"")+'" onclick="setMode(\''+m[0]+'\')">'+m[1]+'</button>';});document.getElementById('modes').innerHTML=h;}
 function renderTabs(){
@@ -296,7 +297,10 @@ function renderChoices(){var c=document.getElementById('choices');if(!c)return;v
 function answer(idx,btn){if(state.fb==="correct")return;var o=state.choices[idx];if(o.char===state.quiz.char){state.fb="correct";btn.style.background="#9be7c4";setStars(state.stars+1);playKey("correct","정답이에요");document.getElementById('qfb').textContent="🎉 정답이에요! ⭐";setTimeout(function(){newQuiz();renderView();},1400);}else{btn.classList.add("shake");setTimeout(function(){btn.classList.remove("shake");},400);playKey("again","다시 해봐요");document.getElementById('qfb').textContent="다시 한 번! 💪";}}
 window.answer=answer;
 
+function resetStars(){if(confirm("모은 별을 모두 지울까요?")){setStars(0);renderView();}}
+window.resetStars=resetStars;
 function renderAll(){renderModes();renderTabs();renderView();}
+setStars(state.stars); // 저장된 별 표시
 renderAll();
 
 </script>
