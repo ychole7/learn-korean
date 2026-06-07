@@ -349,7 +349,7 @@ function drawGuide(){
   ctx.font="240px Jua,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
   ctx.fillStyle="#f2f2f2";ctx.fillText(state.writeChar.char,150,158);
   // 이미 완성한 획: 색칠된 상태로 표시
-  for(var s=0;s<wStep;s++)drawStrokeLine(wStrokes[s],strokeColor(),22,1);
+  for(var s=0;s<wStep;s++)drawStrokeLine(wStrokes[s],strokeColor(),18,1);
   // 현재 획: 점선 + 시작점 번호 + 화살표
   if(wStep<wStrokes.length){
     var cur=wStrokes[wStep];
@@ -389,26 +389,35 @@ function setupCanvas(){
   function checkProgress(p){
     if(wStep>=wStrokes.length)return;
     var cur=wStrokes[wStep];
-    // 곡선/직선을 따라 촘촘한 샘플점 생성
     if(!cur._samples)cur._samples=sampleStroke(cur);
     var sm=cur._samples;
-    for(var i=0;i<sm.length;i++){if(!wHit[i]&&near(p,sm[i],26))wHit[i]=true;}
+    for(var i=0;i<sm.length;i++){if(!wHit[i]&&near(p,sm[i],28))wHit[i]=true;}
     var done=0;for(var k=0;k<sm.length;k++)if(wHit[k])done++;
     var ratio=done/sm.length;
-    // 전체 진행바: (완성획 + 현재획 비율)/총획
+    drawGuide();                 // 가이드 + 완성획 다시 그림
+    drawPartial(cur,sm,wHit);    // 현재 획에서 지나간 부분만 색칠
     var total=(wStep+ratio)/wStrokes.length;
     var bf=document.getElementById('barfill');if(bf)bf.style.width=Math.round(total*100)+"%";
-    if(ratio>=0.8){ // 이 획 거의 다 그림 → 다음 획
+    if(ratio>=0.85){
       wStep++;wHit=[];
       drawGuide();
       if(wStep>=wStrokes.length)finishWrite();
     }
   }
-  wCanvas.onmousedown=wCanvas.ontouchstart=function(e){e.preventDefault();drawing=true;var p=P(e);wCtx.beginPath();wCtx.moveTo(p.x,p.y);checkProgress(p);};
-  wCanvas.onmousemove=wCanvas.ontouchmove=function(e){if(!drawing)return;e.preventDefault();var p=P(e);
-    wCtx.strokeStyle=strokeColor();wCtx.lineWidth=24;wCtx.lineCap="round";wCtx.lineJoin="round";wCtx.lineTo(p.x,p.y);wCtx.stroke();
-    checkProgress(p);};
+  wCanvas.onmousedown=wCanvas.ontouchstart=function(e){e.preventDefault();drawing=true;checkProgress(P(e));};
+  wCanvas.onmousemove=wCanvas.ontouchmove=function(e){if(!drawing)return;e.preventDefault();checkProgress(P(e));};
   wCanvas.onmouseup=wCanvas.ontouchend=wCanvas.onmouseleave=function(){drawing=false;};
+}
+// 현재 획에서 지나간 샘플점들을 색칠
+function drawPartial(stroke,samples,hit){
+  var ctx=wCtx;ctx.save();ctx.strokeStyle=strokeColor();ctx.lineWidth=18;ctx.lineCap="round";ctx.lineJoin="round";
+  var seg=[],i;
+  for(i=0;i<samples.length;i++){
+    if(hit[i]){seg.push(samples[i]);}
+    else{flush();seg=[];}
+  }
+  flush();ctx.restore();
+  function flush(){if(seg.length<1)return;ctx.beginPath();ctx.moveTo(seg[0][0],seg[0][1]);for(var j=1;j<seg.length;j++)ctx.lineTo(seg[j][0],seg[j][1]);if(seg.length===1)ctx.lineTo(seg[0][0]+0.1,seg[0][1]);ctx.stroke();}
 }
 function sampleStroke(stroke){
   var pts=[];
