@@ -107,6 +107,29 @@ function syllableKey(consKey,vowelChar){
   return SOUNDS[k]?k:null;
 }
 
+// 종성(받침) 인덱스 표 (유니코드 순서)
+var JONG=["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+// 글자(받침없는 한 음절)에 받침 붙이기
+function addBatchim(syl,jong){
+  var code=syl.charCodeAt(0)-0xac00;if(code<0||code>11172)return syl+jong;
+  var ji=JONG.indexOf(jong);if(ji<0)return syl;
+  var base=Math.floor(code/28)*28;
+  return String.fromCharCode(0xac00+base+ji);
+}
+// 받침 자음의 소리 key (배우기 자음과 동일)
+var BATCHIM_SOUND={"ㄱ":"g","ㄴ":"n","ㄹ":"r","ㅁ":"m","ㅂ":"b","ㅇ":"ng","ㄷ":"d","ㅅ":"s"};
+// 받침 단어 세트: 앞글자 + 받침 = 단어 (그림 포함)
+var batchimWords=[
+  {base:"고",jong:"ㅁ",emoji:"🐻",color:"#FFDAC1"}, // 곰
+  {base:"사",jong:"ㄴ",emoji:"⛰️",color:"#B5EAD7"}, // 산
+  {base:"무",jong:"ㄹ",emoji:"💧",color:"#A2D2FF"}, // 물
+  {base:"바",jong:"ㅂ",emoji:"🍚",color:"#FFB7B2"}, // 밥
+  {base:"고",jong:"ㅇ",emoji:"🎈",color:"#FF9AA2"}, // 공
+  {base:"무",jong:"ㄴ",emoji:"🚪",color:"#C7CEEA"}, // 문
+  {base:"누",jong:"ㄴ",emoji:"👁️",color:"#E2F0CB"}, // 눈
+  {base:"소",jong:"ㄴ",emoji:"✋",color:"#FFC8A2"}  // 손
+];
+
 // 획순 데이터: 각 글자 = 획 배열, 각 획 = 점 배열 [x,y] (300x300 기준)
 var STROKES={
  // 자음
@@ -206,7 +229,7 @@ document.addEventListener('click',unlock,{once:true});
 var savedStars=0;try{savedStars=parseInt(localStorage.getItem('hangul_stars'))||0;}catch(e){}
 var state={mode:"learn",tab:"consonant",stars:savedStars,writeChar:consonants[0],bCho:consonants[0],bJung:vowels[0],merged:false,quiz:null,choices:[],fb:null,progress:0,traced:false};
 function setStars(n){state.stars=n;var el=document.getElementById('stars');if(el)el.textContent=n;try{localStorage.setItem('hangul_stars',n);}catch(e){}}
-var modes=[["learn","📚 배우기"],["write","✏️ 따라쓰기"],["build","🧩 합치기"],["quiz","🎯 맞히기"],["zoo","🦁 도감"]];
+var modes=[["learn","📚 배우기"],["write","✏️ 따라쓰기"],["build","🧩 합치기"],["batchim","🧱 받침"],["quiz","🎯 맞히기"],["zoo","🦁 도감"]];
 function renderModes(){var h="";modes.forEach(function(m){h+='<button class="'+(state.mode===m[0]?"on":"")+'" onclick="setMode(\''+m[0]+'\')">'+m[1]+'</button>';});document.getElementById('modes').innerHTML=h;}
 function renderTabs(){
   var t=document.getElementById('tabs');
@@ -246,6 +269,18 @@ function renderView(){
       '<button class="small" id="mergeBtn" style="background:#9be7c4;box-shadow:0 6px 0 #6fcf9f;padding:14px 40px;font-size:24px;margin-bottom:18px" onclick="doMerge()">✨ 합치기!</button>'+
       '<div style="margin-bottom:6px;font-size:15px;color:#999">자음 고르기</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:14px" id="bcho"></div>'+
       '<div style="margin-bottom:6px;font-size:15px;color:#999">모음 고르기</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center" id="bjung"></div></div>';
+  } else if(state.mode==="batchim"){
+    var bw=batchimWords[state.bIdx||0];
+    var word=addBatchim(bw.base,bw.jong);
+    h='<div class="center"><p style="font-size:18px;margin:0 0 10px">글자 아래에 받침을 더하면 새 글자! 🧱</p>'+
+      '<div style="font-size:80px;margin:6px 0">'+bw.emoji+'</div>'+
+      '<div id="stage" style="position:relative;height:150px;margin:0 auto 8px;max-width:340px">'+
+        '<div id="tCho" class="tile mtile" style="background:'+bw.color+'">'+bw.base+'</div>'+
+        '<div id="tJung" class="tile mtile" style="background:#bbb">'+bw.jong+'</div>'+
+        '<div id="tRes" class="tile mres" style="background:#ff8fb1">'+(state.merged?word:"?")+'</div>'+
+      '</div>'+
+      '<button class="small" id="mergeBtn" style="background:#9be7c4;box-shadow:0 6px 0 #6fcf9f;padding:14px 40px;font-size:24px;margin-bottom:16px" onclick="doBatchim()">✨ 받침 붙이기!</button>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center" id="bwpick"></div></div>';
   } else if(state.mode==="quiz"){
     var q=state.quiz;if(!q){v.innerHTML="";return;}
     h='<div class="center"><p style="font-size:20px;margin-bottom:6px">이 글자를 찾아봐요!</p>'+
@@ -265,6 +300,7 @@ function renderView(){
   v.innerHTML=h;
   if(state.mode==="write"){setupCanvas();renderWpick();}
   if(state.mode==="build"){renderBuildPicks();}
+  if(state.mode==="batchim"){renderBwPicks();}
   if(state.mode==="quiz"){renderChoices();}
 }
 function cardClick(tab,idx){var it=(tab==="consonant"?consonants:vowels)[idx];playItem(it);}
@@ -405,6 +441,59 @@ function doMerge(){
   },1400);
 }
 window.doMerge=doMerge;
+
+// 받침 앞글자(가/고/무...)의 음절 사운드 key 찾기
+function baseSylKey(baseChar){
+  var code=baseChar.charCodeAt(0)-0xac00;if(code<0)return null;
+  var ci=Math.floor(code/(21*28));        // 초성 index
+  var ji=Math.floor((code%(21*28))/28);   // 중성 index
+  var CHO=["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  var JUNG=["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+  var consMap={"ㄱ":"g","ㄴ":"n","ㄷ":"d","ㄹ":"r","ㅁ":"m","ㅂ":"b","ㅅ":"s","ㅇ":"ng","ㅈ":"j","ㅊ":"ch","ㅋ":"k","ㅌ":"t","ㅍ":"p","ㅎ":"h"};
+  return syllableKey(consMap[CHO[ci]],JUNG[ji]);
+}
+function doBatchim(){
+  var bw=batchimWords[state.bIdx||0];
+  var word=addBatchim(bw.base,bw.jong);
+  var stage=document.getElementById('stage');
+  var btn=document.getElementById('mergeBtn');
+  var res=document.getElementById('tRes');
+  if(!stage)return;
+  state.merged=false;
+  stage.classList.remove('merging','done');
+  res.classList.remove('pop');res.textContent="?";
+  if(btn)btn.disabled=true;
+  var bk=baseSylKey(bw.base);            // 앞글자 소리 (가/고…)
+  var jk=BATCHIM_SOUND[bw.jong];          // 받침 자음 소리
+  // 1) 앞글자 소리
+  if(bk)playKey(bk);
+  // 2) 0.7초 뒤: 받침 소리 + 모이기
+  setTimeout(function(){
+    if(jk)playKey(jk);
+    stage.classList.add('merging');
+  },700);
+  // 3) 1.4초 뒤: 완성 글자 등장 (단어 소리는 아직 없어 글자만)
+  setTimeout(function(){
+    res.textContent=word;
+    stage.classList.add('done');
+    void res.offsetWidth;res.classList.add('pop');
+    state.merged=true;
+    setStars(state.stars+1);
+    setTimeout(function(){playKey("good","참 잘했어요");},500);
+    if(btn)btn.disabled=false;
+  },1400);
+}
+window.doBatchim=doBatchim;
+function renderBwPicks(){
+  var box=document.getElementById('bwpick');if(!box)return;var h="";
+  batchimWords.forEach(function(w,idx){
+    var word=addBatchim(w.base,w.jong);var on=(state.bIdx||0)===idx;
+    h+='<button class="pick'+(on?" on":"")+'" style="width:54px;height:54px;font-size:26px;'+(on?"background:"+w.color:"")+'" onclick="setBw('+idx+')">'+word+'</button>';
+  });
+  box.innerHTML=h;
+}
+function setBw(i){state.bIdx=i;state.merged=false;renderView();}
+window.setBw=setBw;
 function renderBuildPicks(){
   var bc=document.getElementById('bcho'),bj=document.getElementById('bjung');
   var h1="";consonants.forEach(function(c,idx){var on=state.bCho.char===c.char;h1+='<button class="pick'+(on?" on":"")+'" style="'+(on?"background:"+c.color:"")+'" onclick="setBCho('+idx+')">'+c.char+'</button>';});bc.innerHTML=h1;
