@@ -120,12 +120,15 @@ function playKey(keys,fb){
   next();
 }
 function playItem(it){
-  if(it.name&&SOUNDS[it.key+"_name"])playKey([it.key,it.key+"_name"],it.name);
+  // 자음: 이름 먼저, 소리 나중 (예: "기역" → "그")
+  if(it.name&&SOUNDS[it.key+"_name"])playKey([it.key+"_name",it.key],it.name);
   else playKey(it.key,it.name);
 }
 function playCombined(c,j){
-  if(j.char==="ㅏ"&&syllableA[c.key])playKey(syllableA[c.key],combine(c.char,j.char));
-  else playKey([c.key,j.key],combine(c.char,j.char));
+  // 자음 소리 → 모음 소리 → 합쳐진 글자 순으로
+  var seq=[c.key,j.key];
+  if(j.char==="ㅏ"&&syllableA[c.key])seq.push(syllableA[c.key]);
+  playKey(seq,combine(c.char,j.char));
 }
 // 첫 탭에 오디오 잠금 해제
 function unlock(){if(unlocked)return;unlocked=true;var a=ensureAudio();try{a.src=getSrc("a");a.play().then(function(){a.pause();a.currentTime=0;diag("소리 준비 완료! 글자를 눌러보세요.");}).catch(function(){});}catch(e){}}
@@ -177,7 +180,7 @@ function renderView(){
   } else if(state.mode==="quiz"){
     var q=state.quiz;if(!q){v.innerHTML="";return;}
     h='<div class="center"><p style="font-size:20px;margin-bottom:6px">이 글자를 찾아봐요!</p>'+
-      '<button class="qbig" onclick="playKey(state.quiz.key,state.quiz.name)">'+q.name+' 🔊</button>'+
+      '<button class="qbig" onclick="playKey(state.quiz.key,state.quiz.name)">🔊</button>'+
       '<p style="font-size:14px;color:#999;margin-top:4px">(눌러서 다시 듣기)</p>'+
       '<div style="display:flex;gap:12px;justify-content:center;margin-top:14px;flex-wrap:wrap" id="choices"></div>'+
       '<div id="qfb" style="font-size:34px;margin-top:18px"></div></div>';
