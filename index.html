@@ -90,7 +90,7 @@ var syllableA={g:"syl_ga",n:"syl_na",d:"syl_da",r:"syl_ra",m:"syl_ma",b:"syl_ba"
 var zoo=[{e:"🐶",n:"강아지",at:0},{e:"🐰",n:"토끼",at:3},{e:"🐱",n:"고양이",at:6},{e:"🦊",n:"여우",at:10},{e:"🐻",n:"곰",at:15},{e:"🐯",n:"호랑이",at:20},{e:"🦁",n:"사자",at:26},{e:"🐼",n:"판다",at:32},{e:"🦄",n:"유니콘",at:40},{e:"🐉",n:"용",at:50}];
 
 // ---- 오디오 ----
-var blobCache={}, audioEl=null, unlocked=false;
+var blobCache={}, audioEl=null, unlocked=false, playSeqId=0;
 function diag(t){document.getElementById('diag').textContent=t;}
 function getSrc(key){
   if(blobCache[key])return blobCache[key];
@@ -110,12 +110,29 @@ function playKey(keys,fb){
   var srcs=[];for(var x=0;x<list.length;x++){var s=getSrc(list[x]);if(s)srcs.push(s);}
   if(srcs.length===0){if(fb)speak(fb);return;}
   try{speechSynthesis.cancel();}catch(e){}
-  var a=ensureAudio();var i=0;
+  // 이전 재생 중단
+  if(audioEl){try{audioEl.pause();}catch(e){}}
+  playSeqId=(playSeqId||0)+1;
+  var myId=playSeqId;
+  var i=0;
   function next(){
-    if(i>=srcs.length){a.onended=null;return;}
-    a.src=srcs[i++];a.onended=next;
+    if(myId!==playSeqId)return;        // 새 재생이 시작되면 이 시퀀스 중단
+    if(i>=srcs.length)return;
+    var src=srcs[i++];
+    var a=new Audio(src);
+    a.setAttribute('playsinline','');
+    audioEl=a;
+    var advanced=false;
+    function go(){if(advanced)return;advanced=true;next();}
+    a.onended=go;
+    a.onerror=go;
     var p=a.play();
-    if(p&&p.catch)p.catch(function(err){diag("재생 차단됨: "+err.name+" — 화면을 한 번 탭한 뒤 다시 눌러보세요");});
+    if(p&&p.catch)p.catch(function(err){diag("재생 차단됨: "+err.name+" — 화면을 한 번 탭한 뒤 다시 눌러보세요");go();});
+    // 안전장치: 메타데이터로 길이를 알면 그 시간 뒤 강제 진행
+    a.onloadedmetadata=function(){
+      var ms=(isFinite(a.duration)?a.duration*1000:600)+120;
+      setTimeout(go,ms);
+    };
   }
   next();
 }
