@@ -36,6 +36,17 @@
   .pick{border:none;border-radius:12px;width:42px;height:42px;font-size:22px;font-family:inherit;cursor:pointer;background:#fff;color:#888;box-shadow:0 3px 0 rgba(0,0,0,.1);}
   .pick.on{color:#fff;}
   .tile{width:70px;height:70px;border-radius:18px;color:#fff;font-size:44px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 0 rgba(0,0,0,.12);text-shadow:2px 2px 0 rgba(0,0,0,.15);}
+  .mtile{position:absolute;top:45px;transition:left .6s cubic-bezier(.5,-0.3,.4,1.4),opacity .3s,transform .4s;}
+  #tCho{left:calc(50% - 95px);}
+  #tJung{left:calc(50% + 25px);}
+  /* 합쳐지는 순간: 가운데로 모이기 */
+  #stage.merging #tCho{left:calc(50% - 50px);}
+  #stage.merging #tJung{left:calc(50% - 20px);}
+  #stage.done #tCho,#stage.done #tJung{opacity:0;transform:scale(.4);}
+  .mres{position:absolute;top:35px;left:calc(50% - 45px);width:90px;height:90px;font-size:60px;opacity:0;transform:scale(.3);transition:opacity .4s,transform .5s cubic-bezier(.4,-0.2,.3,1.6);}
+  #stage.done .mres{opacity:1;transform:scale(1);}
+  @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)}}
+  #stage.done .mres.pop{animation:pop .4s;}
   .qbig{border:none;background:#fff;border-radius:30px;padding:24px 40px;font-size:80px;font-weight:700;color:#ff8fb1;box-shadow:0 8px 0 #f3d0dd;cursor:pointer;}
   .choice{border:none;border-radius:24px;width:100px;height:120px;box-shadow:0 6px 0 rgba(0,0,0,.12);cursor:pointer;font-size:56px;font-weight:700;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.15);}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
@@ -186,12 +197,13 @@ function renderView(){
       '<button class="small" style="background:#a2d2ff" onclick="playItem(state.writeChar)">🔊 듣기</button></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:14px" id="wpick"></div></div>';
   } else if(state.mode==="build"){
-    h='<div class="center"><p style="font-size:18px;margin:0 0 14px">자음과 모음을 합치면 글자가 돼요! 🧩</p>'+
-      '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px">'+
-      '<div class="tile" style="background:'+state.bCho.color+'">'+state.bCho.char+'</div><div style="font-size:40px">➕</div>'+
-      '<div class="tile" style="background:'+state.bJung.color+'">'+state.bJung.char+'</div><div style="font-size:40px">🟰</div>'+
-      '<div class="tile" style="background:#ff8fb1;width:100px;height:100px;font-size:64px">'+(state.merged?combine(state.bCho.char,state.bJung.char):"?")+'</div></div>'+
-      '<button class="small" style="background:#9be7c4;box-shadow:0 6px 0 #6fcf9f;padding:14px 40px;font-size:24px;margin-bottom:20px" onclick="doMerge()">✨ 합치기!</button>'+
+    h='<div class="center"><p style="font-size:18px;margin:0 0 10px">자음과 모음을 합치면 글자가 돼요! 🧩</p>'+
+      '<div id="stage" style="position:relative;height:160px;margin:0 auto 14px;max-width:340px">'+
+        '<div id="tCho" class="tile mtile" style="background:'+state.bCho.color+'">'+state.bCho.char+'</div>'+
+        '<div id="tJung" class="tile mtile" style="background:'+state.bJung.color+'">'+state.bJung.char+'</div>'+
+        '<div id="tRes" class="tile mres" style="background:#ff8fb1">'+(state.merged?combine(state.bCho.char,state.bJung.char):"?")+'</div>'+
+      '</div>'+
+      '<button class="small" id="mergeBtn" style="background:#9be7c4;box-shadow:0 6px 0 #6fcf9f;padding:14px 40px;font-size:24px;margin-bottom:18px" onclick="doMerge()">✨ 합치기!</button>'+
       '<div style="margin-bottom:6px;font-size:15px;color:#999">자음 고르기</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:14px" id="bcho"></div>'+
       '<div style="margin-bottom:6px;font-size:15px;color:#999">모음 고르기</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center" id="bjung"></div></div>';
   } else if(state.mode==="quiz"){
@@ -237,7 +249,37 @@ function setWrite(tab,idx){state.writeChar=(tab==="consonant"?consonants:vowels)
 window.setWrite=setWrite;
 
 // 합치기
-function doMerge(){state.merged=true;playCombined(state.bCho,state.bJung);renderView();}
+function doMerge(){
+  var c=state.bCho,j=state.bJung;
+  var stage=document.getElementById('stage');
+  var btn=document.getElementById('mergeBtn');
+  var res=document.getElementById('tRes');
+  if(!stage)return;
+  // 초기화
+  state.merged=false;
+  stage.classList.remove('merging','done');
+  res.classList.remove('pop');
+  res.textContent="?";
+  if(btn)btn.disabled=true;
+  var hasSyl=(j.char==="ㅏ"&&syllableA[c.key]);
+  // 1) 자음 소리
+  playKey(c.key);
+  // 2) 0.7초 뒤: 모음 소리 + 모이기 시작
+  setTimeout(function(){
+    playKey(j.key);
+    stage.classList.add('merging');
+  },700);
+  // 3) 1.4초 뒤: 합쳐진 글자 등장 + 소리
+  setTimeout(function(){
+    res.textContent=combine(c.char,j.char);
+    stage.classList.add('done');
+    void res.offsetWidth; // reflow
+    res.classList.add('pop');
+    state.merged=true;
+    if(hasSyl)playKey(syllableA[c.key]);
+    if(btn)btn.disabled=false;
+  },1400);
+}
 window.doMerge=doMerge;
 function renderBuildPicks(){
   var bc=document.getElementById('bcho'),bj=document.getElementById('bjung');
