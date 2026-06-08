@@ -52,6 +52,37 @@
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
   .shake{animation:shake .4s;}
   .diag{font-size:13px;background:#fff8;border-radius:12px;padding:8px 12px;margin-bottom:12px;color:#a06;}
+
+  /* ===== 태블릿 / 넓은 화면 ===== */
+  @media (min-width:700px){
+    body{padding:28px 28px 70px;}
+    .wrap{max-width:900px;}
+    h1{font-size:34px;}
+    .stars{font-size:24px;padding:8px 20px;}
+    .modes{gap:10px;margin-bottom:20px;}
+    .modes button{font-size:20px;padding:16px 10px;border-radius:20px;}
+    .tabs button{font-size:20px;padding:14px 0;}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px;}
+    .card{padding:24px 14px;border-radius:30px;}
+    .card .emoji{font-size:60px;}
+    .card .ch{font-size:72px;}
+    .card .nm{font-size:24px;}
+    .card .wd{font-size:19px;}
+    canvas{width:min(60vmin,440px);height:min(60vmin,440px);}
+    .bar{max-width:440px;height:26px;}
+    .qbig{font-size:120px;padding:30px 60px;}
+    .choice{width:140px;height:170px;font-size:80px;}
+    .tile{width:96px;height:96px;font-size:60px;border-radius:24px;}
+    .pick{width:56px;height:56px;font-size:30px;}
+    .small{font-size:20px;padding:14px 26px;}
+  }
+  /* ===== 가로 모드: 따라쓰기·합치기·받침을 좌우 2단으로 ===== */
+  @media (min-width:900px) and (orientation:landscape){
+    .wrap{max-width:1100px;}
+    .splitLR{display:flex;gap:36px;align-items:center;justify-content:center;}
+    .splitLR>.lr-main{flex:0 0 auto;}
+    .splitLR>.lr-side{flex:1 1 auto;max-width:420px;}
+  }
 </style>
 </head>
 <body>
@@ -292,13 +323,17 @@ function renderView(){
     });
     h+='</div>';
   } else if(state.mode==="write"){
-    h='<div class="center"><p style="font-size:18px;margin:0 0 8px">①번부터 화살표 방향으로 따라 그려요! ✏️</p>'+
-      '<div style="background:#fff;border-radius:28px;padding:12px;box-shadow:0 6px 0 #f3d0dd;display:inline-block"><canvas id="cv" width="300" height="300"></canvas></div>'+
-      '<div class="bar"><div id="barfill"></div></div><div id="praise" style="font-size:30px"></div>'+
-      '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px">'+
-      '<button class="small" style="background:#ffb7b2" onclick="clearCanvas()">🧽 다시</button>'+
-      '<button class="small" style="background:#a2d2ff" onclick="playItem(state.writeChar)">🔊 듣기</button></div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:14px" id="wpick"></div></div>';
+    h='<div class="center"><p style="font-size:18px;margin:0 0 10px">①번부터 화살표 방향으로 따라 그려요! ✏️</p>'+
+      '<div class="splitLR">'+
+        '<div class="lr-main">'+
+          '<div style="background:#fff;border-radius:28px;padding:12px;box-shadow:0 6px 0 #f3d0dd;display:inline-block"><canvas id="cv" width="300" height="300"></canvas></div>'+
+          '<div class="bar"><div id="barfill"></div></div><div id="praise" style="font-size:30px"></div>'+
+          '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px">'+
+          '<button class="small" style="background:#ffb7b2" onclick="clearCanvas()">🧽 다시</button>'+
+          '<button class="small" style="background:#a2d2ff" onclick="playItem(state.writeChar)">🔊 듣기</button></div>'+
+        '</div>'+
+        '<div class="lr-side"><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:14px" id="wpick"></div></div>'+
+      '</div></div>';
   } else if(state.mode==="build"){
     h='<div class="center"><p style="font-size:18px;margin:0 0 10px">자음과 모음을 합치면 글자가 돼요! 🧩</p>'+
       '<div id="stage" style="position:relative;height:160px;margin:0 auto 14px;max-width:340px">'+
