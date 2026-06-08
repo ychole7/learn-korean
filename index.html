@@ -239,9 +239,37 @@ document.addEventListener('click',unlock,{once:true});
 
 // ---- 상태/렌더 ----
 var savedStars=0;try{savedStars=parseInt(localStorage.getItem('hangul_stars'))||0;}catch(e){}
+
+// 학습 기록 (활동 횟수, 출석)
+var STATS={counts:{},days:[],firstDay:null};
+try{var sv=JSON.parse(localStorage.getItem('hangul_stats'));if(sv)STATS=sv;}catch(e){}
+function saveStats(){try{localStorage.setItem('hangul_stats',JSON.stringify(STATS));}catch(e){}}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function markVisit(){
+  var t=todayStr();
+  if(!STATS.firstDay)STATS.firstDay=t;
+  if(STATS.days.indexOf(t)<0)STATS.days.push(t);
+  if(STATS.days.length>400)STATS.days=STATS.days.slice(-400);
+  saveStats();
+}
+function logActivity(menu){
+  STATS.counts[menu]=(STATS.counts[menu]||0)+1;
+  saveStats();
+}
+// 연속 출석일 계산
+function streakDays(){
+  if(!STATS.days.length)return 0;
+  var set={};STATS.days.forEach(function(d){set[d]=1;});
+  var n=0,d=new Date();
+  for(;;){
+    var key=d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+    if(set[key]){n++;d.setDate(d.getDate()-1);}else break;
+  }
+  return n;
+}
 var state={mode:"learn",tab:"consonant",stars:savedStars,writeChar:consonants[0],bCho:consonants[0],bJung:vowels[0],merged:false,quiz:null,choices:[],fb:null,progress:0,traced:false};
 function setStars(n){state.stars=n;var el=document.getElementById('stars');if(el)el.textContent=n;try{localStorage.setItem('hangul_stars',n);}catch(e){}}
-var modes=[["learn","📚 배우기"],["write","✏️ 따라쓰기"],["build","🧩 합치기"],["batchim","🧱 받침"],["word","📖 단어"],["first","🔤 첫소리"],["quiz","🎯 맞히기"],["zoo","🦁 도감"]];
+var modes=[["learn","📚 배우기"],["write","✏️ 따라쓰기"],["build","🧩 합치기"],["batchim","🧱 받침"],["word","📖 단어"],["first","🔤 첫소리"],["quiz","🎯 맞히기"],["zoo","🦁 도감"],["parent","👪 현황"]];
 function renderModes(){var h="";modes.forEach(function(m){h+='<button class="'+(state.mode===m[0]?"on":"")+'" onclick="setMode(\''+m[0]+'\')">'+m[1]+'</button>';});document.getElementById('modes').innerHTML=h;}
 function renderTabs(){
   var t=document.getElementById('tabs');
@@ -250,7 +278,7 @@ function renderTabs(){
               '<button class="'+(state.tab==="vowel"?"on":"")+'" onclick="setTab(\'vowel\')">모음 ㅏㅑㅓ</button>';
 }
 function deck(){return state.tab==="consonant"?consonants:vowels;}
-function setMode(m){state.mode=m;if(m==="quiz")newQuiz();if(m==="first")newFirstQ();renderAll();}
+function setMode(m){state.mode=m;if(m==="quiz")newQuiz();if(m==="first")newFirstQ();if(m!=="parent")logActivity(m);renderAll();}
 function setTab(t){state.tab=t;if(state.mode==="write")state.writeChar=deck()[0];if(state.mode==="quiz")newQuiz();renderAll();}
 window.setMode=setMode;window.setTab=setTab;
 
@@ -324,6 +352,33 @@ function renderView(){
          '<div style="font-size:18px;color:'+(u?"#5a4a42":"#bbb")+'">'+(u?z.n:"⭐ "+z.at)+'</div></div>';
     });
     h+='</div>';
+  } else if(state.mode==="parent"){
+    var labels={learn:"📚 배우기",write:"✏️ 따라쓰기",build:"🧩 합치기",batchim:"🧱 받침",word:"📖 단어",first:"🔤 첫소리",quiz:"🎯 맞히기",zoo:"🦁 도감"};
+    var streak=streakDays();
+    var totalDays=STATS.days.length;
+    var since=STATS.firstDay||todayStr();
+    h='<div style="max-width:420px;margin:0 auto">'+
+      '<p style="font-size:18px;text-align:center;margin:0 0 16px">👪 하온이 학습 현황</p>'+
+      '<div style="display:flex;gap:10px;margin-bottom:16px">'+
+        statCard("⭐","모은 별",state.stars)+
+        statCard("🔥","연속 출석",streak+"일")+
+        statCard("📅","함께한 날",totalDays+"일")+
+      '</div>'+
+      '<div style="background:#fff;border-radius:18px;padding:16px;box-shadow:0 4px 0 #eee">'+
+        '<div style="font-size:15px;color:#999;margin-bottom:10px">활동별 놀이 횟수</div>';
+    var keys=Object.keys(labels);
+    var maxc=1;keys.forEach(function(k){if((STATS.counts[k]||0)>maxc)maxc=STATS.counts[k];});
+    keys.forEach(function(k){
+      var c=STATS.counts[k]||0;var pct=Math.round(c/maxc*100);
+      h+='<div style="display:flex;align-items:center;gap:8px;margin:6px 0">'+
+         '<div style="width:90px;font-size:14px">'+labels[k]+'</div>'+
+         '<div style="flex:1;background:#f3f3f3;border-radius:8px;height:16px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#9be7c4"></div></div>'+
+         '<div style="width:28px;text-align:right;font-size:14px;color:#888">'+c+'</div></div>';
+    });
+    h+='</div>'+
+      '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:12px">'+since+'부터 함께하고 있어요</p>'+
+      '<div style="text-align:center;margin-top:10px"><button class="small" style="background:#ffb7b2;font-size:14px;padding:8px 16px" onclick="resetStats()">기록 초기화</button></div>'+
+      '</div>';
   }
   v.innerHTML=h;
   if(state.mode==="write"){setupCanvas();renderWpick();}
@@ -588,10 +643,20 @@ function answerFirst(idx,btn){
 }
 window.answerFirst=answerFirst;
 
+function statCard(icon,label,val){
+  return '<div style="flex:1;background:#fff;border-radius:18px;padding:14px 6px;text-align:center;box-shadow:0 4px 0 #eee">'+
+    '<div style="font-size:28px">'+icon+'</div>'+
+    '<div style="font-size:22px;font-weight:700;color:#5a4a42;margin:2px 0">'+val+'</div>'+
+    '<div style="font-size:12px;color:#999">'+label+'</div></div>';
+}
+function resetStats(){if(confirm("학습 기록을 모두 지울까요? (별도 함께 초기화돼요)")){STATS={counts:{},days:[],firstDay:todayStr()};saveStats();setStars(0);markVisit();renderView();}}
+window.resetStats=resetStats;
+
 function resetStars(){if(confirm("모은 별을 모두 지울까요?")){setStars(0);renderView();}}
 window.resetStars=resetStars;
 function renderAll(){renderModes();renderTabs();renderView();}
 setStars(state.stars); // 저장된 별 표시
+markVisit();
 renderAll();
 
 </script>
