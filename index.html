@@ -199,7 +199,7 @@ var STROKES={
  "ㅋ":[[[80,80],[210,80],[210,220]],[[80,150],[210,150]]],
  "ㅌ":[[[85,75],[215,75]],[[85,140],[215,140]],[[85,75],[85,215],[215,215]]],
  "ㅍ":[[[75,80],[225,80]],[[120,80],[120,200]],[[180,80],[180,200]],[[75,200],[225,200]]],
- "ㅎ":[[[110,55],[190,55]],[[150,72],[150,92]],[[150,98],[120,106],[100,128],[94,152],[100,176],[120,198],[150,206],[180,198],[200,176],[206,152],[200,128],[180,106],[150,98]]],
+ "ㅎ":[[[108,58],[192,58]],[[150,72],[150,100]],[[150,104],[120,112],[100,132],[94,154],[100,176],[120,196],[150,204],[180,196],[200,176],[206,154],[200,132],[180,112],[150,104]]],
  // 모음
  "ㅏ":[[[140,60],[140,240]],[[140,150],[220,150]]],
  "ㅑ":[[[140,60],[140,240]],[[140,115],[220,115]],[[140,185],[220,185]]],
@@ -483,16 +483,24 @@ function setupCanvas(){
     var cur=wStrokes[wStep];
     if(!cur._samples)cur._samples=sampleStroke(cur);
     var sm=cur._samples;
-    for(var i=0;i<sm.length;i++){if(!wHit[i]&&near(p,sm[i],28))wHit[i]=true;}
+    // 인식 반경: 너무 크면 짧은 획이 한번에 채워짐 → 적당히
+    var radius=22;
+    // 순차 인식: 이미 지나간 다음 점만 새로 인정 (건너뛰기 방지)
+    var firstUnhit=0;while(firstUnhit<sm.length&&wHit[firstUnhit])firstUnhit++;
+    for(var i=firstUnhit;i<sm.length&&i<firstUnhit+4;i++){
+      if(near(p,sm[i],radius))wHit[i]=true; else break;
+    }
     var done=0;for(var k=0;k<sm.length;k++)if(wHit[k])done++;
     var ratio=done/sm.length;
-    drawGuide();                 // 가이드 + 완성획 다시 그림
-    drawPartial(cur,sm,wHit);    // 현재 획에서 지나간 부분만 색칠
+    drawGuide();
+    drawPartial(cur,sm,wHit);
     var total=(wStep+ratio)/wStrokes.length;
     var bf=document.getElementById('barfill');if(bf)bf.style.width=Math.round(total*100)+"%";
     if(ratio>=0.85){
+      var finishedStroke=wStep;
       wStep++;wHit=[];
       drawGuide();
+      // 방금 끝낸 획은 drawGuide가 완성획으로 그려줌(wStep 증가했으므로 포함)
       if(wStep>=wStrokes.length)finishWrite();
     }
   }
